@@ -4,7 +4,7 @@ import { ParentProps } from "solid-js";
 export default function UILink(props: ParentProps & { href: string }) {
   return (
     <A
-      class="border-2 border-solid border-yellow-300 bg-blue-800 shadow-xl text-white py-1 px-4 rounded-md"
+      class="rounded-md border-2 border-solid border-yellow-300 bg-blue-800 px-4 py-1 text-white shadow-xl"
       href={props.href}
     >
       {props.children}

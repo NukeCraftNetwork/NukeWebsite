@@ -4,11 +4,13 @@ dist
 .output
 .vercel
 .netlify
+netlify
 .vinxi
 
 # Environment
 .env
 .env*.local
+.wrangler
 
 # dependencies
 /node_modules

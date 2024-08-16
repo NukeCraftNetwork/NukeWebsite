@@ -1,48 +1,55 @@
-import { A, Router } from "@solidjs/router";
+import { Router } from "@solidjs/router";
 import { FileRoutes } from "@solidjs/start/router";
-import { ParentProps, Suspense } from "solid-js";
 import "./app.css";
+import { Suspense } from "solid-js";
+import { QueryClientProvider } from "@tanstack/solid-query";
+import { QueryClient } from "@tanstack/query-core";
+import { ClientSessionProvider } from "./contexts/session";
+import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
+import { MetaProvider } from "@solidjs/meta";
+import Metadata from "./components/metadata/Metadata";
 import { ComputedVarsProvider } from "./contexts/computedVars";
-import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 
-function Contexts(props: ParentProps) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 1000 * 60 * 1,
-        gcTime: 1000 * 60 * 5,
-      },
+// TODO: Integrations for KYC/KYB/Docusign
+// TODO: Security updates
+// TODO: Check that isDeleted does not break anything (add other tables for deletions and put stuff there as transaction)
+// TODO: isDeleted and isPublished must be respected
+// TODO: Zod validation both in front and backend (possibly with common classes)
+// TODO: Images should ALWAYS have a parent relative with fixed dimensions
+// TODO: Introduce session??
+// TODO: Fixxare register thing. It must redirect to registration in case not all the info are provided
+// TODO: FormData or JSON. Validation on FormData in case
+// TODO: Images should be preloaded from local env and loaded onSubmit with other data
+// TODO: Metti cosa che faccia vedere che opportunita is public
+// TODO: The business sticky
+// TODO: PDF Scroll
+// TODO: Vercel cache
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 1,
+      gcTime: 1000 * 60 * 5,
     },
-  });
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ComputedVarsProvider>{props.children}</ComputedVarsProvider>
-    </QueryClientProvider>
-  );
-}
+  },
+});
 export default function App() {
   return (
     <Router
       root={(props) => (
-        <Contexts>
-          <main class="min-h-screen flex flex-col gap-5 bg-blue-400">
-            <nav class="absolute top-0 left-0 w-full flex h-14 justify-between">
-              <A href="/">
-                <p>Logo deplorevole</p>
-              </A>
-              <A
-                href="/me"
-                class="border-1 border-solid border-white bg-blue-800 rounded-full py-1 pl-1 pr-4 flex gap-2 items-center"
-              >
-                <div class="w-10 h-10 bg-black rounded-full"></div>
-                <p class="text-white">Biasimabile</p>
-              </A>
-            </nav>
-            <div class="pt-14 min-h-[100dvh]">
-              <Suspense>{props.children}</Suspense>
-            </div>
-          </main>
-        </Contexts>
+        <Suspense>
+          <MetaProvider>
+            <QueryClientProvider client={queryClient}>
+              <ComputedVarsProvider>
+                <ClientSessionProvider>
+                  <Metadata />
+                  <SolidQueryDevtools />
+                  <div class="text-main">{props.children}</div>
+                </ClientSessionProvider>
+              </ComputedVarsProvider>
+            </QueryClientProvider>
+          </MetaProvider>
+        </Suspense>
       )}
     >
       <FileRoutes />

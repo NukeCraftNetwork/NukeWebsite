@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="comments" fill="transparent">
+<path d="M8.66665 2H7.33331C4.0196 2 1.33331 4.68629 1.33331 8V11.3333C1.33331 12.8061 2.52722 14 3.99998 14H8.66665C11.9804 14 14.6666 11.3137 14.6666 8C14.6666 4.68629 11.9804 2 8.66665 2Z" stroke="currentColor" stroke-linejoin="round"/>
+<circle cx="7.99998" cy="7.9987" r="0.666667" fill="currentColor"/>
+<ellipse cx="10.6667" cy="7.9987" rx="0.666667" ry="0.666667" fill="currentColor"/>
+<circle cx="5.33335" cy="7.9987" r="0.666667" fill="currentColor"/>
+</svg>

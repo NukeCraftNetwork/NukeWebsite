@@ -10,9 +10,10 @@ import {
   createSignal,
 } from "solid-js";
 import { ZodType, z } from "zod";
-import { emailSchema, mustContain, passwordSchema } from "../../lib/zodSchemas";
+import { emailSchema, mustContain, passwordSchema } from "~/libs/zodSchemas";
+import { PopIn } from "./animations";
 import { AxiosError } from "axios";
-import useComputedVars from "../../hooks/computerVars";
+import { useComputedVars } from "~/hooks/computedVarsHook";
 
 type InputType = {
   title?: JSX.Element | string;
@@ -81,7 +82,7 @@ export function EmailInput(props: InputType) {
         classList={{
           "border-red text-red": error() !== "",
           "border-gray text-gray": error() !== "",
-          "border-blue-800 text-blue-800": valid(),
+          "border-main text-main": valid(),
         }}
       >
         <input
@@ -139,7 +140,7 @@ export function PasswordInput(props: InputType) {
         class={commonInputStyle}
         classList={{
           "border-red text-red": error() !== "",
-          "border-blue-800 text-blue-800": valid(),
+          "border-main text-main": valid(),
         }}
       >
         <input
@@ -185,7 +186,7 @@ export function TextInput(props: InputType) {
         class={commonInputStyle}
         classList={{
           "border-red text-red": Boolean(props.error),
-          "border-blue-800 text-blue-800": !props.error,
+          "border-main text-main": !props.error,
         }}
       >
         <input
@@ -219,7 +220,7 @@ export function NumberInput(props: InputType & { minTicket?: number }) {
         class={commonInputStyle}
         classList={{
           "border-red text-red": Boolean(props.error),
-          "border-blue-800 text-blue-800": !props.error,
+          "border-main text-main": !props.error,
         }}
       >
         <input
@@ -257,7 +258,7 @@ export function PhoneInput(props: InputType) {
         class={`${commonInputStyle} relative`}
         classList={{
           "border-red text-red": Boolean(props.error),
-          "border-blue-800 text-blue-800": !props.error,
+          "border-main text-main": !props.error,
         }}
       >
         <input type="hidden" name={props.name} value={phone()} />
@@ -309,26 +310,28 @@ export function CheckboxInput(props: CheckboxInputType) {
                 }
                 class="relative size-5 shrink-0 grow rounded-md border-2 border-solid transition-all"
                 classList={{
-                  "border-blue-800 bg-gray": opt.value === state(),
+                  "border-main bg-gray": opt.value === state(),
                   "border-darkGray bg-white": opt.value !== state(),
                 }}
               >
                 <Show when={opt.value === state()}>
-                  <svg
-                    class="grow"
-                    width="100%"
-                    height="100%"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                  >
-                    <path
-                      stroke="currentColor"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M17 5L8 15l-5-4"
-                    />
-                  </svg>
+                  <PopIn>
+                    <svg
+                      class="grow"
+                      width="100%"
+                      height="100%"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                    >
+                      <path
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M17 5L8 15l-5-4"
+                      />
+                    </svg>
+                  </PopIn>
                 </Show>
               </button>
               <label for={opt.value.toString()}>
@@ -355,11 +358,9 @@ export function FileInput(props: FileInputType) {
     <>
       <label
         for={`fileUpload_${props.name}`}
-        class="flex w-full items-center  gap-2 overflow-hidden rounded-md border-2 border-solid border-blue-800 bg-gray hover:cursor-pointer "
+        class="flex w-full items-center  gap-2 overflow-hidden rounded-md border-2 border-solid border-main bg-gray hover:cursor-pointer "
       >
-        <span class="h-full shrink-0 bg-blue-800 px-4 py-1 text-white">
-          Upload
-        </span>
+        <span class="h-full shrink-0 bg-main px-4 py-1 text-white">Upload</span>
         <span class="w-full whitespace-nowrap px-2 text-center">
           {state()?.name || props.title}
         </span>
@@ -392,7 +393,7 @@ export function MultipleChoicesInput(
       <div
         class={`${commonInputStyle} w-full ${props.class || ""}`}
         classList={{
-          "border-blue-800 text-blue-800": !props.error,
+          "border-main text-main": !props.error,
           "border-red text-red": Boolean(props.error),
         }}
       >
@@ -411,25 +412,30 @@ export function MultipleChoicesInput(
         />
       </div>
       <Show when={open()}>
-        <ul class="flex max-h-36 w-full flex-col overflow-auto rounded-xl bg-blue-800 p-2 text-white">
-          <For
-            each={props.options.filter((el) =>
-              el.value.toString().toLowerCase().includes(state().toLowerCase())
-            )}
-          >
-            {(el) => (
-              <button
-                onClick={() => {
-                  setState(el.value.toString());
-                  setOpen(false);
-                  props.setValue && props.setValue(el.value.toString());
-                }}
-              >
-                {el.text()}
-              </button>
-            )}
-          </For>
-        </ul>
+        <PopIn class="absolute left-0 top-full z-10 w-full">
+          <ul class="flex max-h-36 w-full flex-col overflow-auto rounded-xl bg-main p-2 text-white">
+            <For
+              each={props.options.filter((el) =>
+                el.value
+                  .toString()
+                  .toLowerCase()
+                  .includes(state().toLowerCase())
+              )}
+            >
+              {(el) => (
+                <button
+                  onClick={() => {
+                    setState(el.value.toString());
+                    setOpen(false);
+                    props.setValue && props.setValue(el.value.toString());
+                  }}
+                >
+                  {el.text()}
+                </button>
+              )}
+            </For>
+          </ul>
+        </PopIn>
       </Show>
       <Show when={props.error}>
         <small class="animate-fadeIn text-red">{props.error}</small>
@@ -450,7 +456,7 @@ export function BooleanInput(
       <div
         class={`grid grid-cols-2 w-full ${props.class || ""}`}
         classList={{
-          "border-blue-800 text-blue-800": !props.error,
+          "border-main text-main": !props.error,
           "border-red text-red": Boolean(props.error),
         }}
       >
@@ -458,7 +464,7 @@ export function BooleanInput(
           type="button"
           class="border-2 border-solid transition-all"
           classList={{
-            "border-blue-800": state() === props.options[0].value,
+            "border-main": state() === props.options[0].value,
             "border-gray": state() !== props.options[0].value,
           }}
           onClick={() => setState(props.options[0].value)}
@@ -469,7 +475,7 @@ export function BooleanInput(
           type="button"
           class="border-2 border-solid transition-all"
           classList={{
-            "border-blue-800": state() === props.options[1].value,
+            "border-main": state() === props.options[1].value,
             "border-gray": state() !== props.options[1].value,
           }}
           onClick={() => setState(props.options[1].value)}
@@ -499,8 +505,7 @@ export function SubmitInput(props: SubmitType) {
   function handleSubmit() {
     props.fn && props.fn();
   }
-  const CLASS =
-    "w-full rounded-xl bg-blue-800 p-3 text-white disabled:bg-darkGray";
+  const CLASS = "w-full rounded-xl bg-main p-3 text-white disabled:bg-darkGray";
   return (
     <Show
       when={props.type === "button"}

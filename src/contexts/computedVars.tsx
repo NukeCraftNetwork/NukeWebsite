@@ -1,5 +1,5 @@
 import { JSX, ParentProps, createContext } from "solid-js";
-import { COUNTRIES_DATA } from "~/lib/variables";
+import { COUNTRIES_DATA } from "~/libs/variables";
 
 type ComputedVarsContextType = {
   COUNTRIES_DATA_NATIONALITIES: {
