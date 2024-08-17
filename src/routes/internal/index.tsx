@@ -16,8 +16,8 @@ const BUTTONS = [
 export default function InternalHomepage() {
   return (
     <div class="grid grid-cols-2">
-      <div class="flex flex-col gap-5 justify-center items-center">
-        <div class="w-64 h-64 rounded-full bg-black border-4 border-solid border-yellow-500"></div>
+      <div class="flex flex-col items-center justify-center gap-5">
+        <div class="size-64 rounded-full border-4 border-solid border-yellow-500 bg-black" />
         <div class="flex flex-col gap-2">
           <h3>Username</h3>
           <For each={["Ceo", "Engineer"]}>
@@ -25,7 +25,7 @@ export default function InternalHomepage() {
           </For>
         </div>
       </div>
-      <div class="flex flex-wrap gap-5 justify-center items-center">
+      <div class="flex flex-wrap items-center justify-center gap-5">
         <For each={BUTTONS}>
           {(el) => (
             <UILink href={el.href}>

@@ -1,28 +1,26 @@
-import {
-  JSX,
-  Match,
-  ParentProps,
-  Show,
-  Switch,
-  createSignal,
-  untrack,
-} from "solid-js";
-import { uploadFile } from "~/actions/cloudflare/r2(action)";
-import { useClientSession } from "~/hooks/sessionHooks";
+import { JSX, ParentProps, createMemo, createSignal } from "solid-js";
+import { convertImg } from "~/libs/functions";
 
 export default function DropZone(
   props: ParentProps & {
-    callback?: (data: string) => void;
+    previewCallback?: (data: string[]) => void;
+    type: "image" | "any";
     class?: JSX.HTMLAttributes<HTMLElement>["class"];
     name?: string;
-    value?: string;
-    fileType?: "public" | "private";
-    placeholder?: string;
+    multiple?: boolean;
   }
 ) {
-  const { editing } = useClientSession();
-  const [url, setUrl] = createSignal(untrack(() => props.value));
-  const [state, setState] = createSignal(0);
+  const acceptTypes = createMemo(() => {
+    if (props.type === "image") {
+      return {
+        preferred: [".avif", "webp"],
+        accepted: [".png", ".jpg", ".jpeg"],
+        full: [".avif", ".webp", ".png", ".jpg", ".jpeg"],
+      };
+    }
+    return null;
+  });
+  const id = crypto.randomUUID();
   const [isDragging, setIsDragging] = createSignal(false);
   function handleDragOver(e: DragEvent) {
     e.preventDefault();
@@ -34,34 +32,71 @@ export default function DropZone(
     e.stopPropagation();
     setIsDragging(false);
   }
-  async function handleDrop(
-    e: DragEvent & {
-      currentTarget: HTMLDivElement;
-      target: Element;
-    }
-  ) {
+  async function handleDrop(e: DragEvent) {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    setState(1);
     const files = e.dataTransfer?.files;
     if (!files) return;
     try {
-      console.log("uploading to ", files[0], props.fileType);
-      const data = await uploadFile(files[0], props.fileType);
-      const url = data.secure_url || data.url;
-      if (!url) throw new Error("URL not provided by server function");
-      props.callback && props.callback(url);
-      setUrl(url);
-      setState(2);
+      handleOnChange(files);
     } catch (e) {
       console.error(e);
-      setState(-1);
     }
   }
+
+  async function handleOnChange(files: FileList | null) {
+    if (!files) return alert("No file was provided to upload");
+    const fileList: File[] = [];
+    for (const file of Array.from(files)) {
+      if (!acceptTypes()) {
+        fileList.push(file);
+      } else {
+        if (
+          !acceptTypes()!.full.some(
+            (acpt) => acpt === `.${file.type.split("/").at(-1)}`
+          )
+        ) {
+          throw new Error(`File type not allowed ${file.type}`);
+        }
+        let bestFile: File | null = null;
+        // Map over the preferred types and convert images
+        const convertedFiles = await Promise.all(
+          acceptTypes()!.preferred.map(async (attempt) => {
+            const newImg = await convertImg(
+              file,
+              `${props.type}/${attempt.replaceAll(".", "")}`
+            );
+            return newImg;
+          })
+        );
+        // Find the smallest file from the converted ones
+        for (const newImg of convertedFiles) {
+          if (!bestFile || newImg.size < bestFile.size) {
+            bestFile = newImg;
+          }
+        }
+        bestFile && fileList.push(bestFile);
+      }
+    }
+    const dataTransfer = new DataTransfer();
+    fileList.forEach((file) => dataTransfer.items.add(file));
+    const inputElement = document.getElementById(
+      `dropZoneInput_${id}`
+    ) as HTMLInputElement;
+    inputElement.files = dataTransfer.files;
+    if (!props.previewCallback) return;
+    if (props.type === "image") {
+      props.previewCallback(fileList.map((el) => URL.createObjectURL(el)));
+    } else {
+      props.previewCallback(fileList.map((el) => el.name));
+    }
+  }
+
   return (
-    <div
-      class={props.class || "relative size-full"}
+    <label
+      for={`dropZoneInput_${id}`}
+      class={props.class || "relative size-full cursor-pointer"}
       classList={{
         "border-2 border-solid border-black": isDragging(),
       }}
@@ -70,18 +105,15 @@ export default function DropZone(
       onDrop={handleDrop}
     >
       {props.children}
-      <Show when={editing()}>
-        <div class="absolute left-0 top-0 flex size-full items-center justify-center bg-[rgba(0,0,0,0.75)]">
-          <p class="text-center font-bold text-white">
-            <Switch fallback={props.placeholder || "Drop New Image Here"}>
-              <Match when={state() === 1}>Uploading...</Match>
-              <Match when={state() === 2}>Uploaded!</Match>
-              <Match when={state() === -1}>Something Went Wrong</Match>
-            </Switch>
-          </p>
-        </div>
-      </Show>
-      <input type="hidden" value={url()} name={props.name || "url"} />
-    </div>
+      <input
+        class="hidden"
+        type="file"
+        id={`dropZoneInput_${id}`}
+        name={props.name || "url"}
+        multiple={props.multiple}
+        accept={acceptTypes()?.full.join(", ")}
+        onChange={(e) => handleOnChange(e.target.files)}
+      />
+    </label>
   );
 }

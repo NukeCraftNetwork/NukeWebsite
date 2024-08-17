@@ -71,3 +71,48 @@ export async function hashPassword(password: string, i: number) {
     .join("");
   return hashPassword(newPassowrd, i - 1);
 }
+
+export async function convertImg(
+  file: File,
+  format: string = "image/webp",
+  quality: number = 0.75
+) {
+  if (!file) throw new Error("File not provided");
+  const canvas = document.createElement("canvas");
+  const image = new Image();
+  image.src = URL.createObjectURL(file);
+  await new Promise((resolve) => {
+    image.onload = () => {
+      resolve(null);
+    };
+  });
+  canvas.width = image.width;
+  canvas.height = image.height;
+  canvas.getContext("2d")!.drawImage(image, 0, 0);
+  const finalIamge = await new Promise((resolve, reject) => {
+    try {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const name = file.name.split(".");
+            name[name.length - 1] = blob.type.split("/").at(-1)!;
+            const newFile = new File([blob], name.join("."));
+            resolve(newFile);
+          } else {
+            console.error(`Failed to convert image to ${format}`);
+            reject(null);
+          }
+        },
+        format,
+        quality
+      );
+    } catch (e) {
+      console.error(e);
+      reject(null);
+    }
+  });
+  // Delete created elements
+  URL.revokeObjectURL(image.src);
+  canvas.remove();
+  return finalIamge as File;
+}

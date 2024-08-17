@@ -1,19 +1,20 @@
 import {
   For,
   JSX,
-  Match,
   Setter,
   Show,
-  Switch,
+  children,
   createEffect,
   createMemo,
   createSignal,
+  onMount,
 } from "solid-js";
 import { ZodType, z } from "zod";
 import { emailSchema, mustContain, passwordSchema } from "~/libs/zodSchemas";
 import { PopIn } from "./animations";
 import { AxiosError } from "axios";
 import { useComputedVars } from "~/hooks/computedVarsHook";
+import { render } from "solid-js/web";
 
 type InputType = {
   title?: JSX.Element | string;
@@ -25,12 +26,8 @@ type InputType = {
   name?: string;
   required?: boolean;
 };
-type Option = {
-  value: string | number;
-  text: () => string | JSX.Element;
-};
 type CheckboxInputType = InputType & {
-  options: Option[];
+  options: OptionType[];
   defaultActive?: number;
 };
 type FileInputType = InputType & {
@@ -212,7 +209,6 @@ export function TextInput(props: InputType) {
 
 export function NumberInput(props: InputType & { minTicket?: number }) {
   const [localValue, setLocalValue] = createSignal("");
-  console.log(props);
   return (
     <div class={commonMainStyle}>
       <p>{props.title}</p>
@@ -264,7 +260,10 @@ export function PhoneInput(props: InputType) {
         <input type="hidden" name={props.name} value={phone()} />
         <MultipleChoicesInput
           name={"phonePrefix"}
-          options={COUNTRIES_DATA_PREFIXES}
+          options={COUNTRIES_DATA_PREFIXES.map((el) => ({
+            text: el.text()!.toString(),
+            value: el.value,
+          }))}
           placeholder={"+00"}
           setValue={(val) => setPrefix(`${val} `)}
           class="border-none"
@@ -335,7 +334,7 @@ export function CheckboxInput(props: CheckboxInputType) {
                 </Show>
               </button>
               <label for={opt.value.toString()}>
-                <p>{opt.text()}</p>
+                <p>{opt.text}</p>
               </label>
             </div>
           )}
@@ -387,6 +386,7 @@ export function MultipleChoicesInput(
 ) {
   const [state, setState] = createSignal("");
   const [open, setOpen] = createSignal(false);
+  console.log(props);
   return (
     <div class="relative">
       <p>{props.title}</p>
@@ -430,7 +430,7 @@ export function MultipleChoicesInput(
                     props.setValue && props.setValue(el.value.toString());
                   }}
                 >
-                  {el.text()}
+                  {el.text}
                 </button>
               )}
             </For>
@@ -454,7 +454,7 @@ export function BooleanInput(
     <div class="relative flex flex-col gap-1">
       <p>{props.title}</p>
       <div
-        class={`grid grid-cols-2 w-full ${props.class || ""}`}
+        class={`grid w-full grid-cols-2 ${props.class || ""}`}
         classList={{
           "border-main text-main": !props.error,
           "border-red text-red": Boolean(props.error),
@@ -469,7 +469,7 @@ export function BooleanInput(
           }}
           onClick={() => setState(props.options[0].value)}
         >
-          <p>{props.options[0].text()}</p>
+          <p>{props.options[0].text}</p>
         </button>
         <button
           type="button"
@@ -480,9 +480,9 @@ export function BooleanInput(
           }}
           onClick={() => setState(props.options[1].value)}
         >
-          <p>{props.options[1].text()}</p>
+          <p>{props.options[1].text}</p>
         </button>
-        <input type="hidden" name={props.name} value={state()}></input>
+        <input type="hidden" name={props.name} value={state()} />
       </div>
       <Show when={props.error}>
         <small class="animate-fadeIn text-red">{props.error}</small>
@@ -531,24 +531,36 @@ export function SubmitInput(props: SubmitType) {
   );
 }
 
-export function Form(props: {
-  inputs: {
-    name: string;
-    title?: string;
-    placeholder?: string;
-    required?: boolean;
-    options?: Option[];
-    type:
-      | "text"
-      | "phone"
-      | "checkbox"
-      | "file"
-      | "multiple"
-      | "email"
-      | "password"
-      | "boolean";
-    validationErrorMsg?: string;
-  }[];
+export function FormGeneralInput(props: FormInputType) {
+  let ref;
+  onMount(() => {
+    ref!.oninput = (
+      e: InputEvent & {
+        currentTarget: HTMLInputElement;
+        target: HTMLInputElement;
+      }
+    ) => {
+      console.log(e.target.value);
+      // props.fn && props.fn(e.target!.value);
+    };
+  });
+  return (
+    <input
+      ref={ref}
+      class="formGeneralInput"
+      title={props.title}
+      name={props.name}
+      placeholder={props.placeholder}
+      required={props.required}
+      data-type={props.type}
+      data-options={JSON.stringify(props.options)}
+      data-validation-error-message={props.validationErrorMsg}
+    />
+  );
+}
+
+export default function Form(props: {
+  children: JSX.Element;
   autocomplete?: "off" | "on";
   class?: JSX.HTMLAttributes<HTMLElement>["class"];
   successCallback?: (
@@ -572,14 +584,99 @@ export function Form(props: {
 
   const [formError, setFormError] = createSignal("");
   const [errors, setErrors] = createSignal([""]);
+
+  const componentMap: {
+    [key: string]: (el: HTMLInputElement, i: number) => JSX.Element;
+  } = {
+    text: (el, i) => (
+      <TextInput
+        title={el.title}
+        placeholder={el.placeholder}
+        name={el.name}
+        error={errors()[i]}
+        setValue={(data) => {
+          const oldErrs = errors();
+          oldErrs[i] = "";
+          setErrors([...oldErrs]);
+          el.onchange && el.onchange(data);
+        }}
+        required={el.required}
+      />
+    ),
+    multiple: (el, i) => {
+      console.log("nigger ", el.oninput);
+      return (
+        <>
+          {el}
+          <MultipleChoicesInput
+            title={el.title}
+            name={el.name}
+            options={JSON.parse(el.dataset.options!) || []}
+            placeholder={el.placeholder}
+            error={errors()[i]}
+            setValue={(data) => {
+              const oldErrs = errors();
+              oldErrs[i] = "";
+              setErrors([...oldErrs]);
+              el.onchange && el.onchange(data);
+            }}
+          />
+        </>
+      );
+    },
+    boolean: (el, i) => (
+      <BooleanInput
+        title={el.title}
+        name={el.name}
+        options={JSON.parse(el.dataset.options!) || []}
+        placeholder={el.placeholder}
+        error={errors()[i]}
+        setValue={(data) => {
+          const oldErrs = errors();
+          oldErrs[i] = "";
+          setErrors([...oldErrs]);
+          el.onchange && el.onchange(data);
+        }}
+      />
+    ),
+  };
+
+  const validInputs = [] as FormInputType[];
+  const resolved = children(() => props.children).toArray() as HTMLDivElement[];
+  resolved.forEach((input) => {
+    input.querySelectorAll(".formGeneralInput").forEach((element, i) => {
+      const el = element as HTMLInputElement;
+      console.log(el.dataset);
+      if (!el.dataset.type) return el;
+      const ReplacementComponent = componentMap[el.dataset.type];
+      if (ReplacementComponent) {
+        console.log(`Replacing input of type ${el.dataset.type}`);
+        const container = document.createElement("div");
+        element.replaceWith(container);
+        render(() => ReplacementComponent(el, i), container);
+        validInputs.push({
+          name: el.name,
+          title: el.title,
+          placeholder: el.placeholder,
+          required: el.required,
+          type: el.dataset["data-type"],
+          validationErrorMsg: el.dataset["data-validation-error-message"],
+          options:
+            el.dataset["data-options"] &&
+            JSON.parse(el.dataset["data-options"]),
+        });
+      }
+    });
+  });
+
   createEffect(() => {
-    setErrors(Array.from({ length: props.inputs.length }, () => ""));
+    setErrors(Array.from({ length: validInputs.length }, () => ""));
   });
 
   // TODO: Error messages should be arrays since there are multiple validation steps
   function getSchema() {
     const obj: Record<string, ZodType> = {};
-    props.inputs.forEach((el, i) => {
+    validInputs.forEach((el, i) => {
       if (el.type === "phone" && el.required) {
         obj[el.name] = z.string().regex(/^\+\d{1,3} \d{7,14}$/, {
           message: `${i}-${
@@ -672,7 +769,7 @@ export function Form(props: {
     e.preventDefault();
     const data = new FormData(e.target as HTMLFormElement);
     const obj: Record<string, FormDataEntryValue> = {};
-    props.inputs.forEach((el) => {
+    validInputs.forEach((el) => {
       obj[el.name] = data.get(el.name)!;
     });
     const result = z.object(getSchema()).safeParse(obj);
@@ -724,7 +821,9 @@ export function Form(props: {
       class={props.class}
       onSubmit={handleSubmit}
     >
-      <For each={props.inputs}>
+      {resolved}
+      {/*
+<For each={props.inputs}>
         {(el, i) => (
           <Switch>
             <Match when={el.type === "text"}>
@@ -846,6 +945,7 @@ export function Form(props: {
       <Show when={formError()}>
         <small class="animate-fadeIn text-red">{formError()}</small>
       </Show>
+        */}
     </form>
   );
 }

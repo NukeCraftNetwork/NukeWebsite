@@ -7,14 +7,11 @@ export default function Metadata() {
   return (
     <>
       <Title>
-        Valeureux{" "}
+        NukEngineering{" "}
         <Show when={params().opportunity}>| {params().opportunity}</Show>
       </Title>
-      <Meta property="og:site_name" content="Valeureux" />
-      <Meta
-        property="og:description"
-        content="Valeureux Fund Managing Webapp"
-      />
+      <Meta property="og:site_name" content="NukEngineering" />
+      <Meta property="og:description" content="Nuke Webapp" />
     </>
   );
 }
