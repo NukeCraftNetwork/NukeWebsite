@@ -6,11 +6,7 @@
     "build": "bunx vinxi build",
     "start": "bunx node-env-run .output/server/index.mjs",
     "lint": "eslint .",
-    "postinstall": "npx prisma migrate deploy && npx prisma generate",
-    "wdeploy": "wrangler deploy",
-    "wdev": "wrangler dev",
-    "wstart": "wrangler dev",
-    "wcf-typegen": "wrangler types"
+    "postinstall": "npx prisma migrate deploy && npx prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.17.0",
@@ -23,6 +19,7 @@
     "apexcharts": "^3.51.0",
     "autoprefixer": "^10.4.19",
     "axios": "^1.7.2",
+    "basic-ftp": "^5.0.5",
     "bcrypt": "^5.1.1",
     "cloudinary": "^2.3.1",
     "js-cookie": "^3.0.5",
@@ -42,7 +39,6 @@
     "node": "^20.x"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240725.0",
     "@eslint/js": "^9.8.0",
     "@tanstack/eslint-plugin-query": "^5.51.15",
     "@types/js-cookie": "^3.0.6",
@@ -55,7 +51,6 @@
     "globals": "^15.8.0",
     "node-env-run": "^4.0.2",
     "typescript-eslint": "7.16.1",
-    "wrangler": "^3.60.3",
     "@types/bcrypt": "^5.0.2"
   },
   "trustedDependencies": [

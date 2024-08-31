@@ -1,22 +1,22 @@
 import {
   For,
   JSX,
+  Match,
   Setter,
   Show,
+  Switch,
   children,
   createEffect,
   createMemo,
   createSignal,
-  onMount,
 } from "solid-js";
 import { ZodType, z } from "zod";
 import { emailSchema, mustContain, passwordSchema } from "~/libs/zodSchemas";
 import { PopIn } from "./animations";
 import { AxiosError } from "axios";
 import { useComputedVars } from "~/hooks/computedVarsHook";
-import { render } from "solid-js/web";
 
-type InputType = {
+type LocalInputType = {
   title?: JSX.Element | string;
   placeholder?: string;
   error?: string;
@@ -26,17 +26,11 @@ type InputType = {
   name?: string;
   required?: boolean;
 };
-type CheckboxInputType = InputType & {
+type CheckboxInputType = LocalInputType & {
   options: OptionType[];
   defaultActive?: number;
 };
-type FileInputType = InputType & {
-  multiple?: boolean;
-  withDropZone?: boolean;
-  setValue?: (val: File) => void;
-};
 type SubmitType = {
-  type?: string;
   text: string;
   loading?: boolean;
   fn?: () => void;
@@ -55,19 +49,19 @@ const commonInputStyle =
   "flex justify-between items-center gap-5 transition-all duration-[0.25s] border-2 border-solid rounded-xl";
 const inputStyle = "w-full h-full p-2 rounded-xl";
 
-export function EmailInput(props: InputType) {
+function EmailInput(props: LocalInputType) {
   const [localValue, setLocalValue] = createSignal("");
-  const [error, setError] = createSignal("");
+  const [localError, setLocalError] = createSignal("");
+  const error = () => props.error || localError();
   const valid = createMemo(() => {
     const validation = props.value
       ? emailSchema.safeParse(props.value)
       : emailSchema.safeParse(localValue());
     if (localValue() || props.value) {
-      setError(validation.error?.errors[0].message || props.error || "");
-      props.setError &&
-        props.setError(
-          validation.error?.errors[0].message || props.error || ""
-        );
+      setLocalError(validation.error?.errors[0].message || props.error || "");
+      props.setError?.(
+        validation.error?.errors[0].message || props.error || ""
+      );
     }
     return validation.success;
   });
@@ -84,7 +78,7 @@ export function EmailInput(props: InputType) {
       >
         <input
           name={props.name || "email"}
-          class={inputStyle}
+          class={`${inputStyle}`}
           value={props.value ? props.value : localValue()}
           onInput={(e) => {
             props.setValue
@@ -92,8 +86,12 @@ export function EmailInput(props: InputType) {
               : setLocalValue(e.target.value.toLowerCase());
           }}
           type="email"
+          data-type="email"
           placeholder={props.placeholder}
           required={props.required}
+          on:validationError={(err: CustomEvent) =>
+            setLocalError(err.detail.message)
+          }
         />
         <div class="pr-2">
           <svg
@@ -107,25 +105,25 @@ export function EmailInput(props: InputType) {
           </svg>
         </div>
       </div>
-      <Show when={props.error || error()}>
-        <small class="animate-fadeIn text-red">{props.error || error()}</small>
+      <Show when={error()}>
+        <small class="animate-fadeIn text-red">{error()}</small>
       </Show>
     </div>
   );
 }
-export function PasswordInput(props: InputType) {
+function PasswordInput(props: LocalInputType) {
   const [localValue, setLocalValue] = createSignal("");
-  const [error, setError] = createSignal("");
+  const [localError, setLocalError] = createSignal("");
+  const error = () => props.error || localError();
   const valid = createMemo(() => {
     const validation = props.value
       ? passwordSchema.safeParse(props.value)
       : passwordSchema.safeParse(localValue());
     if (localValue() || props.value) {
-      setError(validation.error?.errors[0].message || props.error || "");
-      props.setError &&
-        props.setError(
-          validation.error?.errors[0].message || props.error || ""
-        );
+      setLocalError(validation.error?.errors[0].message || props.error || "");
+      props.setError?.(
+        validation.error?.errors[0].message || props.error || ""
+      );
     }
     return validation.success;
   });
@@ -136,31 +134,33 @@ export function PasswordInput(props: InputType) {
       <div
         class={commonInputStyle}
         classList={{
-          "border-red text-red": error() !== "",
+          "border-red text-red": !!error(),
           "border-main text-main": valid(),
         }}
       >
         <input
           name={props.name || "password"}
-          class={inputStyle}
-          value={props.value ? props.value : localValue()}
+          class={`${inputStyle}`}
+          value={props.value || localValue()}
           onInput={(e) => {
-            props.setValue
-              ? props.setValue(e.target.value)
-              : setLocalValue(e.target.value);
+            props.setValue?.(e.target.value) || setLocalValue(e.target.value);
           }}
           type={view() ? "text" : "password"}
+          data-type="password"
           placeholder={props.placeholder}
           minLength={8}
           required={props.required}
+          on:validationError={(err: CustomEvent) =>
+            setLocalError(err.detail.message)
+          }
         />
         <button onClick={() => setView(!view())} tabIndex={-1} type="button">
           <div class="pr-2">
             <svg
               {...commongSvgProps}
               classList={{
-                "text-red": error() !== "",
-                "text-black": error() === "",
+                "text-red": !error(),
+                "text-black": !!error(),
               }}
             >
               <use href="/icons/password.svg#password" />
@@ -168,84 +168,93 @@ export function PasswordInput(props: InputType) {
           </div>
         </button>
       </div>
-      <Show when={props.error || error()}>
-        <small class="animate-fadeIn text-red">{props.error || error()}</small>
+      <Show when={error()}>
+        <small class="animate-fadeIn text-red">{error()}</small>
       </Show>
     </div>
   );
 }
-export function TextInput(props: InputType) {
+export function TextInput(props: LocalInputType) {
   const [localValue, setLocalValue] = createSignal("");
+  const [localError, setLocalError] = createSignal("");
+  const error = () => props.error || localError();
   return (
     <div class={commonMainStyle}>
       <p>{props.title}</p>
       <div
         class={commonInputStyle}
         classList={{
-          "border-red text-red": Boolean(props.error),
-          "border-main text-main": !props.error,
+          "border-red text-red": !!error(),
+          "border-main text-main": !error(),
         }}
       >
         <input
           name={props.name || "text"}
-          class={inputStyle}
-          value={props.value ? props.value : localValue()}
+          class={`${inputStyle}`}
+          value={props.value || localValue()}
           onInput={(e) => {
-            props.setValue
-              ? props.setValue(e.target.value)
-              : setLocalValue(e.target.value);
+            props.setValue?.(e.target.value) || setLocalValue(e.target.value);
           }}
           type="text"
+          data-type="text"
           placeholder={props.placeholder}
           required={props.required}
+          on:validationError={(err: CustomEvent) =>
+            setLocalError(err.detail.message)
+          }
         />
       </div>
-      <Show when={props.error}>
-        <small class="animate-fadeIn text-red">{props.error}</small>
+      <Show when={error()}>
+        <small class="animate-fadeIn text-red">{error()}</small>
       </Show>
     </div>
   );
 }
 
-export function NumberInput(props: InputType & { minTicket?: number }) {
+function NumberInput(props: LocalInputType & { minTicket?: number }) {
   const [localValue, setLocalValue] = createSignal("");
+  const [localError, setLocalError] = createSignal("");
+  const error = () => props.error || localError();
   return (
     <div class={commonMainStyle}>
       <p>{props.title}</p>
       <div
         class={commonInputStyle}
         classList={{
-          "border-red text-red": Boolean(props.error),
-          "border-main text-main": !props.error,
+          "border-red text-red": !!error(),
+          "border-main text-main": !error(),
         }}
       >
         <input
           name={props.name || "number"}
-          class={inputStyle}
-          value={props.value ? props.value : localValue()}
+          class={`${inputStyle}`}
+          value={props.value || localValue()}
           onInput={(e) => {
-            props.setValue
-              ? props.setValue(e.target.value)
-              : setLocalValue(e.target.value);
+            props.setValue?.(e.target.value) || setLocalValue(e.target.value);
           }}
           type="number"
+          data-type="number"
           placeholder={props.placeholder}
           required={props.required}
           min={props.minTicket}
+          on:validationError={(err: CustomEvent) =>
+            setLocalError(err.detail.message)
+          }
         />
       </div>
-      <Show when={props.error}>
-        <small class="animate-fadeIn text-red">{props.error}</small>
+      <Show when={error()}>
+        <small class="animate-fadeIn text-red">{error()}</small>
       </Show>
     </div>
   );
 }
 
-export function PhoneInput(props: InputType) {
+function PhoneInput(props: LocalInputType) {
   const { COUNTRIES_DATA_PREFIXES } = useComputedVars();
-
   const [prefix, setPrefix] = createSignal("");
   const [localValue, setLocalValue] = createSignal("");
+  const [localError, setLocalError] = createSignal("");
+  const error = () => props.error || localError();
   const phone = createMemo(() => `${prefix()}${localValue()}`);
   return (
     <div class={commonMainStyle}>
@@ -253,11 +262,19 @@ export function PhoneInput(props: InputType) {
       <div
         class={`${commonInputStyle} relative`}
         classList={{
-          "border-red text-red": Boolean(props.error),
-          "border-main text-main": !props.error,
+          "border-red text-red": !!error(),
+          "border-main text-main": !error(),
         }}
       >
-        <input type="hidden" name={props.name} value={phone()} />
+        <input
+          type="hidden"
+          data-type="phone"
+          name={props.name}
+          value={phone()}
+          on:validationError={(err: CustomEvent) =>
+            setLocalError(err.detail.message)
+          }
+        />
         <MultipleChoicesInput
           name={"phonePrefix"}
           options={COUNTRIES_DATA_PREFIXES.map((el) => ({
@@ -272,7 +289,7 @@ export function PhoneInput(props: InputType) {
           class={`${inputStyle} grow`}
           value={props.value ? props.value : localValue()}
           onInput={(e) => {
-            props.setValue && props.setValue(e.target.value);
+            props.setValue?.(e.target.value);
             setLocalValue(e.target.value);
           }}
           type="tel"
@@ -280,24 +297,31 @@ export function PhoneInput(props: InputType) {
           required
         />
       </div>
-      <Show when={props.error}>
-        <small class="animate-fadeIn text-red">{props.error}</small>
+      <Show when={error()}>
+        <small class="animate-fadeIn text-red">{error()}</small>
       </Show>
     </div>
   );
 }
 
-export function CheckboxInput(props: CheckboxInputType) {
+function CheckboxInput(props: CheckboxInputType) {
   const [state, setState] = createSignal<string | number>();
+  const [localError, setLocalError] = createSignal("");
+  const error = () => props.error || localError();
   return (
     <div class={commonMainStyle}>
       <p>{props.title}</p>
       <div class={"flex justify-evenly gap-2"}>
         <input
           type="hidden"
+          data-type="checkbox"
+          data-options={JSON.stringify(props.options)}
           name={props.name || "radio"}
           value={state()}
           required={props.required}
+          on:validationError={(err: CustomEvent) =>
+            setLocalError(err.detail.message)
+          }
         />
         <For each={props.options}>
           {(opt) => (
@@ -340,75 +364,55 @@ export function CheckboxInput(props: CheckboxInputType) {
           )}
         </For>
       </div>
-      <Show when={props.error}>
-        <small class="animate-fadeIn text-red">{props.error}</small>
+      <Show when={error()}>
+        <small class="animate-fadeIn text-red">{error()}</small>
       </Show>
     </div>
   );
 }
 
-export function FileInput(props: FileInputType) {
-  const [state, setState] = createSignal<File>();
-  function handleChange(files: FileList) {
-    props.setValue && props.setValue(files[0]);
-    setState(files[0]);
-  }
-  return (
-    <>
-      <label
-        for={`fileUpload_${props.name}`}
-        class="flex w-full items-center  gap-2 overflow-hidden rounded-md border-2 border-solid border-main bg-gray hover:cursor-pointer "
-      >
-        <span class="h-full shrink-0 bg-main px-4 py-1 text-white">Upload</span>
-        <span class="w-full whitespace-nowrap px-2 text-center">
-          {state()?.name || props.title}
-        </span>
-        <input
-          class="hidden"
-          id={`fileUpload_${props.name}`}
-          type="file"
-          name={props.name}
-          multiple={props.multiple}
-          onChange={(e) => handleChange(e.target.files!)}
-        />
-      </label>
-      <Show when={props.error}>
-        <small class="animate-fadeIn text-red">{props.error}</small>
-      </Show>
-    </>
-  );
-}
-
-export function MultipleChoicesInput(
+function MultipleChoicesInput(
   props: CheckboxInputType & {
     class?: JSX.HTMLAttributes<HTMLElement>["class"];
   }
 ) {
   const [state, setState] = createSignal("");
   const [open, setOpen] = createSignal(false);
-  console.log(props);
+  const [localError, setLocalError] = createSignal("");
+  const error = () => props.error || localError();
+  let lastInteract = Date.now();
+  function handleOpen(bool: boolean) {
+    if (Date.now() - lastInteract < 333) return;
+    lastInteract = Date.now();
+    setOpen(bool);
+  }
   return (
     <div class="relative">
       <p>{props.title}</p>
       <div
         class={`${commonInputStyle} w-full ${props.class || ""}`}
         classList={{
-          "border-main text-main": !props.error,
-          "border-red text-red": Boolean(props.error),
+          "border-main text-main": !error(),
+          "border-red text-red": !!error(),
         }}
       >
         <input
           value={state()}
-          onFocus={() => setOpen(true)}
+          onFocus={() => handleOpen(true)}
           onInput={(e) => setState(e.target.value)}
           name={props.name || "text"}
-          class={`${inputStyle} cursor-pointer`}
+          class={` ${inputStyle} cursor-pointer`}
           type="text"
+          data-type="multiple"
+          data-options={JSON.stringify(props.options)}
           placeholder={props.placeholder}
           required={props.required}
           onClick={() => {
-            setOpen(!open());
+            handleOpen(!open());
           }}
+          on:validationError={(err: CustomEvent) =>
+            setLocalError(err.detail.message)
+          }
         />
       </div>
       <Show when={open()}>
@@ -427,7 +431,7 @@ export function MultipleChoicesInput(
                   onClick={() => {
                     setState(el.value.toString());
                     setOpen(false);
-                    props.setValue && props.setValue(el.value.toString());
+                    props.setValue?.(el.value.toString());
                   }}
                 >
                   {el.text}
@@ -437,27 +441,30 @@ export function MultipleChoicesInput(
           </ul>
         </PopIn>
       </Show>
-      <Show when={props.error}>
-        <small class="animate-fadeIn text-red">{props.error}</small>
+      <Show when={error()}>
+        <small class="animate-fadeIn text-red">{error()}</small>
       </Show>
     </div>
   );
 }
 
-export function BooleanInput(
+function BooleanInput(
   props: CheckboxInputType & {
     class?: JSX.HTMLAttributes<HTMLElement>["class"];
   }
 ) {
   const [state, setState] = createSignal<string | number>();
+  const [localError, setLocalError] = createSignal("");
+  const error = () => props.error || localError();
+  createEffect(() => state() && props.setValue?.(state()!.toString()));
   return (
     <div class="relative flex flex-col gap-1">
       <p>{props.title}</p>
       <div
         class={`grid w-full grid-cols-2 ${props.class || ""}`}
         classList={{
-          "border-main text-main": !props.error,
-          "border-red text-red": Boolean(props.error),
+          "border-main text-main": !error(),
+          "border-red text-red": !!error(),
         }}
       >
         <button
@@ -482,16 +489,25 @@ export function BooleanInput(
         >
           <p>{props.options[1].text}</p>
         </button>
-        <input type="hidden" name={props.name} value={state()} />
+        <input
+          type="hidden"
+          data-type={"boolean"}
+          data-options={JSON.stringify(props.options)}
+          name={props.name}
+          value={state()}
+          on:validationError={(err: CustomEvent) =>
+            setLocalError(err.detail.message)
+          }
+        />
       </div>
-      <Show when={props.error}>
-        <small class="animate-fadeIn text-red">{props.error}</small>
+      <Show when={error()}>
+        <small class="animate-fadeIn text-red">{error()}</small>
       </Show>
     </div>
   );
 }
 
-export function SubmitInput(props: SubmitType) {
+function SubmitInput(props: SubmitType) {
   const [text, setText] = createSignal("");
   let interval: NodeJS.Timeout;
   createEffect(() => {
@@ -502,60 +518,111 @@ export function SubmitInput(props: SubmitType) {
     }
     clearInterval(interval);
   });
-  function handleSubmit() {
-    props.fn && props.fn();
-  }
-  const CLASS = "w-full rounded-xl bg-main p-3 text-white disabled:bg-darkGray";
   return (
-    <Show
-      when={props.type === "button"}
-      fallback={
-        <input
-          type={"submit"}
-          class={CLASS}
-          value={props.loading ? text() : props.text}
-          onSubmit={handleSubmit}
-          disabled={props.error ? true : false}
-        />
-      }
+    <button
+      class={"w-full rounded-xl bg-main p-3 text-white disabled:bg-darkGray"}
+      onClick={() => props.fn?.()}
+      disabled={props.error ? true : false}
     >
-      <button
-        type={"button"}
-        class={CLASS}
-        onClick={handleSubmit}
-        disabled={props.error ? true : false}
-      >
-        <p>{props.loading ? text() : props.text}</p>
-      </button>
-    </Show>
+      <p>{props.loading ? text() : props.text}</p>
+    </button>
   );
 }
 
-export function FormGeneralInput(props: FormInputType) {
-  let ref;
-  onMount(() => {
-    ref!.oninput = (
-      e: InputEvent & {
-        currentTarget: HTMLInputElement;
-        target: HTMLInputElement;
-      }
-    ) => {
-      console.log(e.target.value);
-      // props.fn && props.fn(e.target!.value);
-    };
-  });
+export function Input(props: InputType) {
   return (
-    <input
-      ref={ref}
-      class="formGeneralInput"
-      title={props.title}
-      name={props.name}
-      placeholder={props.placeholder}
-      required={props.required}
-      data-type={props.type}
-      data-options={JSON.stringify(props.options)}
-      data-validation-error-message={props.validationErrorMsg}
-    />
+    <Switch
+      fallback={
+        <TextInput
+          title={props.title}
+          placeholder={props.placeholder}
+          value={props.value as string | undefined}
+          name={props.name}
+          required={props.required}
+          setValue={(data) => props.fn?.(data)}
+        />
+      }
+    >
+      <Match when={props.type === "submit"}>
+        <SubmitInput
+          text={(props.value as string | undefined) || "Submit!"}
+          fn={() => props.fn?.("")}
+        />
+      </Match>
+      <Match when={props.type === "boolean"}>
+        <BooleanInput
+          title={props.title}
+          placeholder={props.placeholder}
+          value={props.value as string | undefined}
+          name={props.name}
+          required={props.required}
+          setValue={(data) => props.fn?.(data)}
+          options={props.options!}
+        />
+      </Match>
+      <Match when={props.type === "multiple"}>
+        <MultipleChoicesInput
+          title={props.title}
+          placeholder={props.placeholder}
+          value={props.value as string | undefined}
+          name={props.name}
+          required={props.required}
+          setValue={(data) => props.fn?.(data)}
+          options={props.options!}
+        />
+      </Match>
+      <Match when={props.type === "checkbox"}>
+        <CheckboxInput
+          title={props.title}
+          placeholder={props.placeholder}
+          value={props.value as string | undefined}
+          name={props.name}
+          required={props.required}
+          setValue={(data) => props.fn?.(data)}
+          options={props.options!}
+        />
+      </Match>
+      <Match when={props.type === "phone"}>
+        <PhoneInput
+          title={props.title}
+          placeholder={props.placeholder}
+          value={props.value as string | undefined}
+          name={props.name}
+          required={props.required}
+          setValue={(data) => props.fn?.(data)}
+        />
+      </Match>
+      <Match when={props.type === "number"}>
+        <NumberInput
+          title={props.title}
+          placeholder={props.placeholder}
+          value={props.value as string | undefined}
+          name={props.name}
+          required={props.required}
+          setValue={(data) => props.fn?.(data)}
+        />
+      </Match>
+      <Match when={props.type === "password"}>
+        <PasswordInput
+          title={props.title}
+          placeholder={props.placeholder}
+          value={props.value as string | undefined}
+          name={props.name}
+          required={props.required}
+          setValue={(data) => props.fn?.(data)}
+        />
+      </Match>
+      <Match when={props.type === "email"}>
+        <EmailInput
+          title={props.title}
+          placeholder={props.placeholder}
+          value={props.value as string | undefined}
+          name={props.name}
+          required={props.required}
+          setValue={(data) => props.fn?.(data)}
+        />
+      </Match>
+    </Switch>
   );
 }
 
@@ -585,86 +652,14 @@ export default function Form(props: {
   const [formError, setFormError] = createSignal("");
   const [errors, setErrors] = createSignal([""]);
 
-  const componentMap: {
-    [key: string]: (el: HTMLInputElement, i: number) => JSX.Element;
-  } = {
-    text: (el, i) => (
-      <TextInput
-        title={el.title}
-        placeholder={el.placeholder}
-        name={el.name}
-        error={errors()[i]}
-        setValue={(data) => {
-          const oldErrs = errors();
-          oldErrs[i] = "";
-          setErrors([...oldErrs]);
-          el.onchange && el.onchange(data);
-        }}
-        required={el.required}
-      />
-    ),
-    multiple: (el, i) => {
-      console.log("nigger ", el.oninput);
-      return (
-        <>
-          {el}
-          <MultipleChoicesInput
-            title={el.title}
-            name={el.name}
-            options={JSON.parse(el.dataset.options!) || []}
-            placeholder={el.placeholder}
-            error={errors()[i]}
-            setValue={(data) => {
-              const oldErrs = errors();
-              oldErrs[i] = "";
-              setErrors([...oldErrs]);
-              el.onchange && el.onchange(data);
-            }}
-          />
-        </>
-      );
-    },
-    boolean: (el, i) => (
-      <BooleanInput
-        title={el.title}
-        name={el.name}
-        options={JSON.parse(el.dataset.options!) || []}
-        placeholder={el.placeholder}
-        error={errors()[i]}
-        setValue={(data) => {
-          const oldErrs = errors();
-          oldErrs[i] = "";
-          setErrors([...oldErrs]);
-          el.onchange && el.onchange(data);
-        }}
-      />
-    ),
-  };
-
-  const validInputs = [] as FormInputType[];
+  const validInputs = [] as HTMLInputElement[];
   const resolved = children(() => props.children).toArray() as HTMLDivElement[];
   resolved.forEach((input) => {
-    input.querySelectorAll(".formGeneralInput").forEach((element, i) => {
+    // The following function doesn't exist on the server
+    input.querySelectorAll?.("input").forEach((element) => {
       const el = element as HTMLInputElement;
-      console.log(el.dataset);
-      if (!el.dataset.type) return el;
-      const ReplacementComponent = componentMap[el.dataset.type];
-      if (ReplacementComponent) {
-        console.log(`Replacing input of type ${el.dataset.type}`);
-        const container = document.createElement("div");
-        element.replaceWith(container);
-        render(() => ReplacementComponent(el, i), container);
-        validInputs.push({
-          name: el.name,
-          title: el.title,
-          placeholder: el.placeholder,
-          required: el.required,
-          type: el.dataset["data-type"],
-          validationErrorMsg: el.dataset["data-validation-error-message"],
-          options:
-            el.dataset["data-options"] &&
-            JSON.parse(el.dataset["data-options"]),
-        });
+      if (el.dataset.type) {
+        validInputs.push(el);
       }
     });
   });
@@ -677,10 +672,10 @@ export default function Form(props: {
   function getSchema() {
     const obj: Record<string, ZodType> = {};
     validInputs.forEach((el, i) => {
-      if (el.type === "phone" && el.required) {
+      if (el.dataset.type === "phone" && el.required) {
         obj[el.name] = z.string().regex(/^\+\d{1,3} \d{7,14}$/, {
           message: `${i}-${
-            el.validationErrorMsg ||
+            el.dataset.validationErrorMsg ||
             `Please insert a valid ${el.title?.toLowerCase() || "value"}`
           }`,
         });
@@ -689,27 +684,30 @@ export default function Form(props: {
         obj[el.name] = z
           .custom<File>()
           .refine((file) => file && file.name && file.size, {
-            message: `${i}-${el.validationErrorMsg || "This file is required"}`,
+            message: `${i}-${
+              el.dataset.validationErrorMsg || "This file is required"
+            }`,
           })
           .refine((file) => !file.name.includes("/"), {
             message: `${i}-${
-              el.validationErrorMsg || "File name must not include '/'"
+              el.dataset.validationErrorMsg || "File name must not include '/'"
             }`,
           })
           .refine((file) => file && file.size <= MAX_SIZE, {
             message: `${i}-${
-              el.validationErrorMsg || "The maximum size of the file is 100MB"
+              el.dataset.validationErrorMsg ||
+              "The maximum size of the file is 100MB"
             }`,
           });
       } else if (el.type === "multiple" && el.required) {
-        const arr = el.options;
+        const arr = JSON.parse(el.dataset.options!) as OptionType[];
         if (arr) {
           const values = arr.map((el) => el.value.toString().toLowerCase());
           obj[el.name] = z
             .string()
             .refine((val) => values.includes(val.toLowerCase()), {
               message: `${i}-${
-                el.validationErrorMsg ||
+                el.dataset.validationErrorMsg ||
                 `Please insert a valid ${el.title?.toLowerCase() || "value"}`
               }`,
             });
@@ -717,39 +715,41 @@ export default function Form(props: {
       } else if (el.type === "text" && el.required) {
         obj[el.name] = z.string().min(1, {
           message: `${i}-${
-            el.validationErrorMsg ||
+            el.dataset.validationErrorMsg ||
             `Please insert a valid ${el.title?.toLowerCase() || "value"}`
           }`,
         });
       } else if (el.type === "checkbox" && el.required) {
-        const arr = el.options;
+        const arr = JSON.parse(el.dataset.options!) as OptionType[];
         if (arr) {
           const values = arr.map((el) => el.value.toString().toLowerCase());
           obj[el.name] = z
             .string()
             .refine((val) => values.includes(val.toLowerCase()), {
               message: `${i}-${
-                el.validationErrorMsg ||
+                el.dataset.validationErrorMsg ||
                 `Please insert a valid ${el.title?.toLowerCase() || "value"}`
               }`,
             });
         }
       } else if (el.type === "email" && el.required) {
         obj[el.name] = z.string().email({
-          message: `${i}-${el.validationErrorMsg || `Invalid email provided`}`,
+          message: `${i}-${
+            el.dataset.validationErrorMsg || `Invalid email provided`
+          }`,
         });
       } else if (el.type === "password" && el.required) {
         obj[el.name] = z
           .string()
           .min(8, {
             message: `${i}-${
-              el.validationErrorMsg ||
+              el.dataset.validationErrorMsg ||
               `The password should be at least 8 chars long`
             }`,
           })
           .refine((val) => mustContain.some((c) => val.includes(c)), {
             message: `${i}-${
-              el.validationErrorMsg ||
+              el.dataset.validationErrorMsg ||
               `The password must contain one of the following characters: ${mustContain.join(
                 " "
               )}`
@@ -757,7 +757,7 @@ export default function Form(props: {
           })
           .refine((val) => /[A-Z]/.test(val), {
             message: `${i}-${
-              el.validationErrorMsg ||
+              el.dataset.validationErrorMsg ||
               `The passwrord should contain at least a upper case letter`
             }`,
           });
@@ -781,7 +781,7 @@ export default function Form(props: {
         prevErrs[parseInt(splittedMsg[0])] = splittedMsg[1];
         setErrors([...prevErrs]);
       });
-      return props.errorCallback && props.errorCallback();
+      return props.errorCallback?.();
     }
     Object.keys(obj).map((key) => {
       if (!obj[key] || obj[key] === "undefined") {
@@ -815,137 +815,26 @@ export default function Form(props: {
       }
     }
   }
+  createEffect(() => {
+    errors().forEach((message, i) => {
+      if (message) {
+        const evt = new CustomEvent("validationError", {
+          detail: { message },
+        });
+        validInputs[i].dispatchEvent(evt);
+      }
+    });
+  });
   return (
     <form
-      autocomplete={props.autocomplete}
+      autocomplete={props.autocomplete || "off"}
       class={props.class}
       onSubmit={handleSubmit}
     >
       {resolved}
-      {/*
-<For each={props.inputs}>
-        {(el, i) => (
-          <Switch>
-            <Match when={el.type === "text"}>
-              <TextInput
-                title={el.title}
-                placeholder={el.placeholder}
-                name={el.name}
-                error={errors()[i()]}
-                setValue={() => {
-                  const oldErrs = errors();
-                  oldErrs[i()] = "";
-                  setErrors([...oldErrs]);
-                }}
-                required={el.required}
-              />
-            </Match>
-            <Match when={el.type === "phone"}>
-              <PhoneInput
-                title={el.title}
-                placeholder={el.placeholder}
-                name={el.name}
-                error={errors()[i()]}
-                setValue={() => {
-                  const oldErrs = errors();
-                  oldErrs[i()] = "";
-                  setErrors([...oldErrs]);
-                }}
-                required={el.required}
-              />
-            </Match>
-            <Match when={el.type === "checkbox"}>
-              <CheckboxInput
-                title={el.title}
-                placeholder={el.placeholder}
-                name={el.name}
-                error={errors()[i()]}
-                setValue={() => {
-                  const oldErrs = errors();
-                  oldErrs[i()] = "";
-                  setErrors([...oldErrs]);
-                }}
-                options={(el.options as Option[]) || []}
-                defaultActive={-1}
-                required={el.required}
-              />
-            </Match>
-            <Match when={el.type === "file"}>
-              <FileInput
-                withDropZone
-                multiple={false}
-                name={el.name}
-                title={el.title}
-                error={errors()[i()]}
-                setValue={() => {
-                  const oldErrs = errors();
-                  oldErrs[i()] = "";
-                  setErrors([...oldErrs]);
-                }}
-              />
-            </Match>
-            <Match when={el.type === "multiple"}>
-              <MultipleChoicesInput
-                title={el.title}
-                name={el.name}
-                options={el.options || []}
-                placeholder={el.placeholder}
-                error={errors()[i()]}
-                setValue={() => {
-                  const oldErrs = errors();
-                  oldErrs[i()] = "";
-                  setErrors([...oldErrs]);
-                }}
-              />
-            </Match>
-            <Match when={el.type === "email"}>
-              <EmailInput
-                title={el.title}
-                name={el.name}
-                placeholder={el.placeholder}
-                error={errors()[i()]}
-                setValue={() => {
-                  const oldErrs = errors();
-                  oldErrs[i()] = "";
-                  setErrors([...oldErrs]);
-                }}
-              />
-            </Match>
-            <Match when={el.type === "password"}>
-              <PasswordInput
-                title={el.title}
-                name={el.name}
-                placeholder={el.placeholder}
-                error={errors()[i()]}
-                setValue={() => {
-                  const oldErrs = errors();
-                  oldErrs[i()] = "";
-                  setErrors([...oldErrs]);
-                }}
-              />
-            </Match>
-            <Match when={el.type === "boolean"}>
-              <BooleanInput
-                title={el.title}
-                name={el.name}
-                options={el.options || []}
-                placeholder={el.placeholder}
-                error={errors()[i()]}
-                setValue={() => {
-                  const oldErrs = errors();
-                  oldErrs[i()] = "";
-                  setErrors([...oldErrs]);
-                }}
-              />
-            </Match>
-          </Switch>
-        )}
-      </For>
-      <SubmitInput text={props.submitText || "Submit"} />{" "}
       <Show when={formError()}>
         <small class="animate-fadeIn text-red">{formError()}</small>
       </Show>
-        */}
     </form>
   );
 }

@@ -1,43 +1,114 @@
 import { useSearchParams } from "@solidjs/router";
-import { clientOnly } from "@solidjs/start";
 import { createQuery } from "@tanstack/solid-query";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import DropZone from "~/components/DropZone";
-import { FormGeneralInput, TextInput } from "~/components/ui/form";
-const Form = clientOnly(() => import("~/components/ui/form"));
-import { prismaGetTocos } from "~/libs/prismaFunctions";
+import CloseButton from "~/components/ui/CloseButton";
+import Form, { Input, TextInput } from "~/components/ui/form";
+import { prismaCreateToco, prismaGetTocos } from "~/libs/prismaFunctions";
 
 async function getData() {
   "use server";
   return await prismaGetTocos();
 }
+async function postData(formData: FormData) {
+  "use server";
+  return await prismaCreateToco(formData);
+}
 
 function Part() {
+  const [type, setType] = createSignal("");
+  const [printer, setPrinter] = createSignal("");
   return (
-    <div>
-      <FormGeneralInput
+    <div class="flex flex-col gap-2">
+      <Input
         type="boolean"
         name="partType"
         options={[
-          { text: "Fabricated", value: "fabricated" },
-          { text: "Component", value: "component" },
+          { text: "Fabricated", value: "Fabricated" },
+          { text: "Component", value: "Component" },
         ]}
+        fn={(data) => setType(data)}
       />
+      <Switch>
+        <Match when={type().toLocaleLowerCase() === "fabricated"}>
+          <Input
+            type="multiple"
+            title="Printer Type"
+            name="printer"
+            options={[{ text: "Plastic", value: "plastic" }]}
+            fn={(data) => setPrinter(data)}
+          />
+          <Show when={printer()}>
+            <Input type="text" title="Material" name="material" />
+            <Input type="text" title="Cost Variable" name="costVariable" />
+            <Input type="text" title="Time Variable" name="timeVariable" />
+          </Show>
+        </Match>
+        <Match when={type().toLocaleLowerCase() === "component"}>
+          <Input type="text" title="Link" name="link" />
+          <Input type="number" title="Cost" name="cost" />
+        </Match>
+      </Switch>
     </div>
   );
 }
-function CreateTocoPopup() {
+function Component() {
+  return (
+    <div>
+      <Input
+        type="multiple"
+        title="Children"
+        name="children"
+        options={[{ text: "U-000000", value: "U-000000" }]}
+      />
+      <Input
+        type="multiple"
+        title="Assembler Group"
+        name="assemblerGroup"
+        options={[{ text: "ASM1", value: "ASM1" }]}
+      />
+      <Input type="number" title="Assembly Time" name="assemblyTime" />
+      <Input type="text" title="Additives" name="additives" />
+    </div>
+  );
+}
+function Product() {
+  return (
+    <div>
+      <Input
+        type="multiple"
+        title="Component / Part"
+        name="componentOrPart"
+        options={[{ text: "U-000000", value: "U-000000" }]}
+      />
+      <Input type="number" title="Packaging Time" name="packagingTime" />
+      <Input type="text" title="Packaging" name="packaging" />
+      <Input type="text" title="Markup" name="markup" />
+    </div>
+  );
+}
+
+function CreateTocoPopup(props: {
+  data: ExtractPromiseType<ReturnType<typeof prismaGetTocos>>;
+}) {
+  const [, setSearchParams] = useSearchParams();
   const [image, setImage] = createSignal<string | undefined>();
   const [files, setFiles] = createSignal<string[]>([]);
   const [type, setType] = createSignal("");
+  async function handleSubmit(formData: FormData) {
+    console.log(formData);
+    await postData(formData);
+  }
   return (
-    <div class="fixed left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col gap-5">
-      <Form>
+    <div class="fixed left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col gap-5 rounded-xl p-5 shadow-xl">
+      <CloseButton tr callback={() => setSearchParams({ popup: null })} />
+      <Form asyncSuccessCallback={handleSubmit} returnFormData>
         <div class="flex flex-col gap-5">
           <div class="flex w-full justify-evenly gap-5">
             <div class="flex flex-col justify-evenly gap-2">
               <DropZone
                 type="image"
+                name="image"
                 previewCallback={(data) => setImage(data[0])}
               >
                 <div class="relative size-56">
@@ -64,39 +135,43 @@ function CreateTocoPopup() {
                   </Show>
                 </div>
               </DropZone>
-              <FormGeneralInput
+              <Input
                 title="Type"
                 type="multiple"
                 name="type"
                 options={[
                   {
                     text: "Part",
-                    value: "part",
+                    value: "Part",
                   },
                   {
                     text: "Component",
-                    value: "component",
+                    value: "Component",
                   },
                   {
                     text: "Product",
-                    value: "product",
+                    value: "Product",
                   },
                 ]}
-                fn={(data) => console.log(data)}
+                fn={(value) => setType(value)}
               />
             </div>
-            <div class="flex flex-col justify-evenly gap-2">
-              <FormGeneralInput type="text" title="Name" name="name" />
-              <FormGeneralInput
+            <div class="flex w-56 flex-col justify-evenly gap-2">
+              <Input type="text" title="Name" name="name" />
+              <Input
                 type="text"
                 title="Unicode"
                 placeholder="U-000000"
+                value={`${type().charAt(0) || "X"}-${
+                  props.data?.filter?.((el) => el.type === type()).length || "0"
+                }`}
                 name="unicode"
               />
             </div>
             <div class="flex flex-col justify-evenly gap-2">
               <DropZone
                 type="any"
+                name="files"
                 previewCallback={(data) => setFiles(data)}
                 multiple
               >
@@ -140,13 +215,25 @@ function CreateTocoPopup() {
             </div>
           </div>
           <Switch>
-            <Match when={type() === "part"}>
+            <Match when={type().toLocaleLowerCase() === "part"}>
               <Part />
+            </Match>
+            <Match when={type().toLocaleLowerCase() === "component"}>
+              <Component />
+            </Match>
+            <Match when={type().toLocaleLowerCase() === "product"}>
+              <Product />
             </Match>
           </Switch>
           <div class="flex items-center justify-center">
-            <FormGeneralInput type="text" title="Secrecy" name="secrecy" />
+            <Input type="text" title="Secrecy" name="secrecy" />
           </div>
+          <Input
+            fn={() => console.log("should submit")}
+            type="submit"
+            name=""
+            value={"Submit"}
+          />
         </div>
       </Form>
     </div>
@@ -154,14 +241,14 @@ function CreateTocoPopup() {
 }
 export default function Database() {
   const [search, setSearch] = createSignal("");
-  const data = createQuery(() => ({ queryKey: ["tochi"], queryFn: getData }));
   const [searchParams, setSearchParams] = useSearchParams();
+  const data = createQuery(() => ({ queryKey: ["tochi"], queryFn: getData }));
   return (
     <div>
       <div class="flex gap-2 p-2">
         <TextInput setValue={setSearch} />
         <button
-          class="rounded-full bg-green-600 px-4 pb-1 text-white"
+          class="rounded-full bg-green-600 px-4 text-white"
           onClick={() => setSearchParams({ popup: true })}
         >
           <h4 class="">+</h4>
@@ -185,7 +272,7 @@ export default function Database() {
         </For>
       </div>
       <Show when={searchParams.popup}>
-        <CreateTocoPopup />
+        <CreateTocoPopup data={data} />
       </Show>
     </div>
   );

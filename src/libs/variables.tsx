@@ -1,8 +1,7 @@
 export const BASE_URL =
-  import.meta.env.VITE_BASE_URL || "https://valeureux.bysproject.co.uk";
+  import.meta.env.VITE_BASE_URL || "https://www.nuke.engineering";
 export const WORKER_URL =
-  import.meta.env.VITE_WORKER_BASE_URL ||
-  "https://r2.valeureux.bysproject.co.uk";
+  import.meta.env.VITE_WORKER_BASE_URL || "https://r2.nuke.engineering";
 
 export const COUNTRIES_DATA = [
   {

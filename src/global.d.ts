@@ -7,20 +7,28 @@ type OptionType = {
   value: string | number;
   text: string;
 };
-type BaseFormInputType = {
+type BaseInputType = {
   name: string;
   title?: string;
   placeholder?: string;
   required?: boolean;
   validationErrorMsg?: string;
+  value?: unknown;
   fn?: (data: string) => void;
 };
-type FormInputType =
-  | (BaseFormInputType & {
-      type: "text" | "phone" | "file" | "email" | "password";
+type InputType =
+  | (BaseInputType & {
+      type:
+        | "text"
+        | "number"
+        | "phone"
+        | "file"
+        | "email"
+        | "password"
+        | "submit";
       options?: never;
     })
-  | (BaseFormInputType & {
+  | (BaseInputType & {
       type: "checkbox" | "multiple" | "boolean";
       options: OptionType[];
     });

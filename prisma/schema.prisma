@@ -20,48 +20,23 @@ model Toco {
   stock        Int         @default(0)
   secrecyPerm  String?
   creationDate DateTime    @default(now())
-  boughtPartId Int?
-  boughtPart   BoughtPart? @relation(fields: [boughtPartId], references: [id])
-  madePartId   Int?
-  madePart     MadePart?   @relation(fields: [madePartId], references: [id])
-  componentId  Int?
-  component    Component?  @relation(fields: [componentId], references: [id])
-  productId    Int?
-  product      Product?    @relation(fields: [productId], references: [id])
-}
-
-model BoughtPart {
-  id       Int        @id @default(autoincrement())
-  link     String
-  cost     Float
-  Products Toco[]
-}
-
-model MadePart {
-  id       Int        @id @default(autoincrement())
-  machine  String
-  material String
-  volume   Float
-  time     Int
-  Products Toco[]
-}
-
-model Component {
-  id             Int        @id @default(autoincrement())
-  components     Json
-  assemblerGroup String
-  time           Int
-  additives      Json
-  Products       Toco[]
-}
-
-model Product {
-  id        Int        @id @default(autoincrement())
-  component String // Unicode of part/component
-  packaging Json
-  time      Int
-  markup    Float
-  isMarkup  Int
-  isRoundUp Int
-  Products  Toco[]
+  files String[]
+  // If Part
+  partType String?  
+  machine String?
+  material String?
+  costVariable Float?
+  timeVariable Float?
+  link String?
+  cost Float?
+  // If Component
+  children String?
+  assemblerGroup String?
+  assemblyTime Float?
+  additives Json?
+  // If Product
+  componentOrPart String?
+  packagingTime Float?
+  packaging String?
+  markup String?
 }

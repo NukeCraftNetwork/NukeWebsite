@@ -1,4 +1,4 @@
-import { JSX, ParentProps, createMemo, createSignal } from "solid-js";
+import { JSX, ParentProps, createMemo, createSignal, Show } from "solid-js";
 import { convertImg } from "~/libs/functions";
 
 export default function DropZone(
@@ -20,8 +20,8 @@ export default function DropZone(
     }
     return null;
   });
-  const id = crypto.randomUUID();
   const [isDragging, setIsDragging] = createSignal(false);
+  const [localError, setLocalError] = createSignal("");
   function handleDragOver(e: DragEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -82,7 +82,7 @@ export default function DropZone(
     const dataTransfer = new DataTransfer();
     fileList.forEach((file) => dataTransfer.items.add(file));
     const inputElement = document.getElementById(
-      `dropZoneInput_${id}`
+      `dropZoneInput_${props.name}`
     ) as HTMLInputElement;
     inputElement.files = dataTransfer.files;
     if (!props.previewCallback) return;
@@ -95,8 +95,8 @@ export default function DropZone(
 
   return (
     <label
-      for={`dropZoneInput_${id}`}
-      class={props.class || "relative size-full cursor-pointer"}
+      for={`dropZoneInput_${props.name}`}
+      class={props.class || "relative cursor-pointer"}
       classList={{
         "border-2 border-solid border-black": isDragging(),
       }}
@@ -108,12 +108,19 @@ export default function DropZone(
       <input
         class="hidden"
         type="file"
-        id={`dropZoneInput_${id}`}
+        data-type="file"
+        id={`dropZoneInput_${props.name}`}
         name={props.name || "url"}
         multiple={props.multiple}
         accept={acceptTypes()?.full.join(", ")}
         onChange={(e) => handleOnChange(e.target.files)}
+        on:validationError={(err: CustomEvent) =>
+          setLocalError(err.detail.message)
+        }
       />
+      <Show when={localError()}>
+        <small class="animate-fadeIn text-red">{localError()}</small>
+      </Show>
     </label>
   );
 }
