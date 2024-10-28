@@ -116,3 +116,13 @@ export async function convertImg(
   canvas.remove();
   return finalIamge as File;
 }
+
+export function convertTime(
+  amount: number,
+  unit: "seconds" | "minutes" | "hours"
+) {
+  if (unit == "seconds") return amount;
+  if (unit == "minutes") return amount * 60;
+  if (unit === "hours") return amount * 60 * 60;
+  return 0;
+}

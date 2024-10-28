@@ -1,5 +1,7 @@
 export const BASE_URL =
   import.meta.env.VITE_BASE_URL || "https://www.nuke.engineering";
+export const STRAPI_BASE_URL = "https://www.nuke.engineering/strapi";
+
 export const WORKER_URL =
   import.meta.env.VITE_WORKER_BASE_URL || "https://r2.nuke.engineering";
 
